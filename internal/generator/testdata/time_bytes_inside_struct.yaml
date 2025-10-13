@@ -1,0 +1,26 @@
+openapi: 3.0.3
+info:
+  title: time-bytes-inside-struct
+  version: 1.0.0
+components:
+  schemas:
+    BlobRecord:
+      type: object
+      description: Demonstrates date-time and byte inside an object.
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: Record ID.
+        payload:
+          type: string
+          format: byte
+          description: Raw payload.
+        uploadedAt:
+          type: string
+          format: date-time
+          description: Upload time.
+        note:
+          type: string
+          description: Optional note.
+      required: [id, payload, uploadedAt]

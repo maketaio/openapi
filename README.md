@@ -1,0 +1,1 @@
+# OpenAPI Codegen for Go

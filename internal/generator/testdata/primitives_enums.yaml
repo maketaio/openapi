@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: primitives-enums
+  version: 1.0.0
+components:
+  schemas:
+    StringEnum:
+      type: string
+      description: A string enum.
+      enum: [red, green, blue]
+      x-enum-varnames: [Red, Green, Blue]
+      x-enum-descriptions:
+        - The color red
+        - The color green
+        - The color blue
+    IntEnum32:
+      type: integer
+      description: Int32 enum.
+      enum: [1, 2]
+    IntEnum64:
+      type: integer
+      format: int64
+      description: Int64 enum.
+      enum: [10000000000, 20000000000]
+    FloatEnum:
+      type: number
+      description: Float enum.
+      enum: [1.5, 2]
+    BoolEnum:
+      type: boolean
+      description: Bool enum.
+      enum: [true, false]
+    DateType:
+      type: string
+      format: date-time
+      description: A timestamp.
+    BytesType:
+      type: string
+      format: byte
+      description: Raw bytes.
+    PlainString:
+      type: string
+      description: Just a string.

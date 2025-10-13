@@ -1,0 +1,48 @@
+openapi: 3.0.3
+info:
+  title: nested-objects
+  version: 1.0.0
+components:
+  schemas:
+    Order:
+      type: object
+      description: Order with nested customer, items and metadata map.
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: Order identifier.
+        customer:
+          type: object
+          description: Customer info.
+          additionalProperties: false
+          properties:
+            name:
+              type: string
+              description: Full name.
+            email:
+              type: string
+              description: Contact email.
+          required: [name]
+        items:
+          type: array
+          description: Line items.
+          items:
+            type: object
+            description: One line item.
+            additionalProperties: false
+            properties:
+              sku:
+                type: string
+                description: Stock keeping unit.
+              qty:
+                type: integer
+                format: int32
+                description: Quantity.
+            required: [sku, qty]
+        metadata:
+          type: object
+          description: Arbitrary metadata.
+          additionalProperties:
+            type: string
+      required: [id, customer, items]
