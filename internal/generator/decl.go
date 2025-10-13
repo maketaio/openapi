@@ -447,16 +447,16 @@ func makeConsts[T any](name string, schema *base.Schema, litFunc func(T) string,
 	var descriptions []string
 
 	if orderedmap.Len(schema.Extensions) > 0 {
-		varnameExt, found := schema.Extensions.Get("x-enum-varnames")
+		xvarname, found := schema.Extensions.Get("x-enum-varnames")
 		if found {
-			if err := varnameExt.Decode(&varnames); err != nil {
+			if err := xvarname.Decode(&varnames); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal x-enum-varnames: %w", err)
 			}
 		}
 
-		descriptionExt, found := schema.Extensions.Get("x-enum-descriptions")
+		xdescription, found := schema.Extensions.Get("x-enum-descriptions")
 		if found {
-			if err := descriptionExt.Decode(&descriptions); err != nil {
+			if err := xdescription.Decode(&descriptions); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal x-enum-descriptions: %w", err)
 			}
 		}
