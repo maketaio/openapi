@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/maketaio/api/internal/generator"
+	"github.com/maketaio/openapi/internal/oapigen/generator"
 	"github.com/spf13/cobra"
 )
 

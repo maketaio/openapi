@@ -1,1 +1,1 @@
-# OpenAPI Codegen for Go
+# An opinionated OpenAPI toolset for Go

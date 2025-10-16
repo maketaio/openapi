@@ -1,4 +1,4 @@
-module github.com/maketaio/api
+module github.com/maketaio/openapi
 
 go 1.24.7
 

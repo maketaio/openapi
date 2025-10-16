@@ -4,8 +4,15 @@ info:
   version: 1.0.0
 components:
   schemas:
+    Age:
+      type: integer
+      maximum: 24
+      exclusiveMaximum: 24
+      minimum: 5
+      exclusiveMinimum: 4
     User:
       type: object
+      additionalProperties: false
       required:
         - id
         - name
@@ -14,6 +21,8 @@ components:
           type: integer
         name:
           type: string
+        age:
+          $ref: '#/components/schemas/Age'
         metadata:
           type: object
           additionalProperties:

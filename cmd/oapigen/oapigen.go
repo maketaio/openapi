@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/maketaio/api/internal/cli"
+	"github.com/maketaio/openapi/internal/oapigen/cli"
 )
 
 func main() {
