@@ -22,11 +22,8 @@ const (
 	TypeFloat64
 	TypeBool
 	TypeString
-	TypeTime
-	TypeBinary
 	TypeObject
 	TypeArray
-	TypeMap
 	TypeRef
 )
 
@@ -39,9 +36,11 @@ type Type struct {
 
 	// Validation
 	Min, Max         *int64   // For int32, int64, string, map, slice
-	ExclMin, ExclMax bool     // For int32, int64, float64, string, map, slice
+	ExclMin, ExclMax bool     // For int32, int64, float64
 	MultipleOf       *int64   // For int32, int64
 	Len              *int64   // For string, map, slice
+	Pattern          string   // For string
+	Format           string   // For string
 	MinF, MaxF       *float64 // For float64
 }
 
@@ -185,25 +184,24 @@ func (r *Registry) visit(l Location, sp *base.SchemaProxy) (*Type, error) {
 }
 
 func (r *Registry) visitStr(l Location, schema *base.Schema) (*Type, error) {
-	var typ *Type
+	typ := &Type{
+		Kind:    TypeString,
+		Pattern: schema.Pattern,
+		Format:  schema.Format,
+	}
 
-	switch schema.Format {
-	case "date", "date-time":
-		typ = &Type{Kind: TypeTime}
+	if schema.MaxLength != nil && schema.MinLength != nil && *schema.MaxLength == *schema.MinLength {
+		typ.Len = schema.MaxLength
+	} else {
+		typ.Min = schema.MinLength
+		typ.Max = schema.MaxLength
+	}
 
-	case "binary", "byte":
-		typ = &Type{Kind: TypeBinary}
-
-	default:
-		typ = &Type{Kind: TypeString}
-
-		if len(schema.Enum) > 0 {
-			enum, err := makeConsts(schema, func(c *EnumConst, v string) { c.Str = &v })
-			if err != nil {
-				return nil, err
-			}
-
-			typ.Enum = enum
+	if len(schema.Enum) > 0 {
+		var err error
+		typ.Enum, err = makeConsts(schema, func(c *EnumConst, v string) { c.Str = &v })
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -224,23 +222,21 @@ func (r *Registry) visitInt(l Location, schema *base.Schema) (*Type, error) {
 		typ = &Type{Kind: TypeInt32}
 
 		if len(schema.Enum) > 0 {
-			enum, err := makeConsts(schema, func(c *EnumConst, v int32) { c.Int32 = &v })
+			var err error
+			typ.Enum, err = makeConsts(schema, func(c *EnumConst, v int32) { c.Int32 = &v })
 			if err != nil {
 				return nil, err
 			}
-
-			typ.Enum = enum
 		}
 	} else {
 		typ = &Type{Kind: TypeInt64}
 
 		if len(schema.Enum) > 0 {
-			enum, err := makeConsts(schema, func(c *EnumConst, v int64) { c.Int64 = &v })
+			var err error
+			typ.Enum, err = makeConsts(schema, func(c *EnumConst, v int64) { c.Int64 = &v })
 			if err != nil {
 				return nil, err
 			}
-
-			typ.Enum = enum
 		}
 	}
 
@@ -286,12 +282,11 @@ func (r *Registry) visitNum(l Location, schema *base.Schema) (*Type, error) {
 	typ := &Type{Kind: TypeFloat64}
 
 	if len(schema.Enum) > 0 {
-		enum, err := makeConsts(schema, func(c *EnumConst, v float64) { c.Float64 = &v })
+		var err error
+		typ.Enum, err = makeConsts(schema, func(c *EnumConst, v float64) { c.Float64 = &v })
 		if err != nil {
 			return nil, err
 		}
-
-		typ.Enum = enum
 	}
 
 	b := getNumericBounds(schema)
@@ -312,12 +307,11 @@ func (r *Registry) visitBool(l Location, schema *base.Schema) (*Type, error) {
 	typ := &Type{Kind: TypeBool}
 
 	if len(schema.Enum) > 0 {
-		enum, err := makeConsts(schema, func(c *EnumConst, v bool) { c.Bool = &v })
+		var err error
+		typ.Enum, err = makeConsts(schema, func(c *EnumConst, v bool) { c.Bool = &v })
 		if err != nil {
 			return nil, err
 		}
-
-		typ.Enum = enum
 	}
 
 	if l.IsTopLevel() || len(typ.Enum) > 0 {
@@ -335,6 +329,13 @@ func (r *Registry) visitArr(l Location, schema *base.Schema) (*Type, error) {
 		Kind: TypeArray,
 	}
 
+	if schema.MaxItems != nil && schema.MinItems != nil && *schema.MaxItems == *schema.MinItems {
+		typ.Len = schema.MaxItems
+	} else {
+		typ.Min = schema.MinItems
+		typ.Max = schema.MaxItems
+	}
+
 	if schema.Items == nil {
 		typ.Elem = &Type{
 			Kind: TypeUnknown,
@@ -348,12 +349,11 @@ func (r *Registry) visitArr(l Location, schema *base.Schema) (*Type, error) {
 			typ.Len = ptr.To(int64(0))
 		}
 	} else {
-		elem, err := r.visit(l.WithItems(), schema.Items.A)
+		var err error
+		typ.Elem, err = r.visit(l.WithItems(), schema.Items.A)
 		if err != nil {
 			return nil, err
 		}
-
-		typ.Elem = elem
 	}
 
 	if l.IsTopLevel() {
@@ -367,36 +367,35 @@ func (r *Registry) visitArr(l Location, schema *base.Schema) (*Type, error) {
 }
 
 func (r *Registry) visitObj(l Location, schema *base.Schema) (*Type, error) {
-	additionalPropMap, err := r.visitAdditionalProps(l, schema)
+	typ := &Type{
+		Kind: TypeObject,
+	}
+
+	if schema.MaxProperties != nil && schema.MinProperties != nil && *schema.MaxProperties == *schema.MinProperties {
+		typ.Len = schema.MaxProperties
+	} else {
+		typ.Min = schema.MinProperties
+		typ.Max = schema.MaxProperties
+	}
+
+	var err error
+	typ.Elem, err = r.visitAdditionalProps(l, schema)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get additional properties type for %s: %w", l.String(), err)
+		return nil, err
 	}
 
 	if orderedmap.Len(schema.Properties) == 0 {
-		if additionalPropMap == nil {
-			if l.IsTopLevel() {
-				return &Type{
-					Kind: TypeRef,
-					Ref:  r.addDecl(l, &Type{Kind: TypeObject}, schema),
-				}, nil
-			}
-
-			return &Type{
-				Kind: TypeObject,
-			}, nil
-		}
-
 		if l.IsTopLevel() {
 			return &Type{
 				Kind: TypeRef,
-				Ref:  r.addDecl(l, additionalPropMap, schema),
+				Ref:  r.addDecl(l, typ, schema),
 			}, nil
 		}
 
-		return additionalPropMap, nil
+		return typ, nil
 	}
 
-	fields := make([]Field, 0, orderedmap.Len(schema.Properties))
+	typ.Fields = make([]Field, 0, orderedmap.Len(schema.Properties))
 
 	for prop := schema.Properties.First(); prop != nil; prop = prop.Next() {
 		name := prop.Key()
@@ -408,22 +407,13 @@ func (r *Registry) visitObj(l Location, schema *base.Schema) (*Type, error) {
 
 		propSchema := prop.Value().Schema()
 
-		fields = append(fields, Field{
+		typ.Fields = append(typ.Fields, Field{
 			Name:       name,
 			Type:       ft,
 			Required:   slices.Contains(schema.Required, name),
 			Deprecated: ptr.Deref(propSchema.Deprecated, false),
 			Doc:        toDocLines(propSchema.Description),
 		})
-	}
-
-	typ := &Type{
-		Kind:   TypeObject,
-		Fields: fields,
-	}
-
-	if additionalPropMap != nil {
-		typ.Elem = additionalPropMap
 	}
 
 	if l.IsTopLevel() {
@@ -439,10 +429,7 @@ func (r *Registry) visitObj(l Location, schema *base.Schema) (*Type, error) {
 func (r *Registry) visitAdditionalProps(l Location, schema *base.Schema) (*Type, error) {
 	if schema.AdditionalProperties == nil {
 		return &Type{
-			Kind: TypeMap,
-			Elem: &Type{
-				Kind: TypeUnknown,
-			},
+			Kind: TypeUnknown,
 		}, nil
 	}
 
@@ -452,22 +439,11 @@ func (r *Registry) visitAdditionalProps(l Location, schema *base.Schema) (*Type,
 		}
 
 		return &Type{
-			Kind: TypeMap,
-			Elem: &Type{
-				Kind: TypeUnknown,
-			},
+			Kind: TypeUnknown,
 		}, nil
 	}
 
-	elem, err := r.visit(l.WithAdditionalProperties(), schema.AdditionalProperties.A)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Type{
-		Kind: TypeMap,
-		Elem: elem,
-	}, nil
+	return r.visit(l.WithAdditionalProperties(), schema.AdditionalProperties.A)
 }
 
 func toDocLines(doc string) []string {

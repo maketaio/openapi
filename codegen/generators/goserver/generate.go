@@ -129,22 +129,27 @@ func writeType(buf *bytes.Buffer, namer *declNamer, typ *model.Type) {
 	case model.TypeFloat64:
 		buf.WriteString("float64")
 	case model.TypeString:
-		buf.WriteString("string")
+		if typ.Format == "date" || typ.Format == "date-time" {
+			buf.WriteString("time.Time")
+		} else if typ.Format == "binary" || typ.Format == "byte" {
+			buf.WriteString("[]byte")
+		} else {
+			buf.WriteString("string")
+		}
 	case model.TypeBool:
 		buf.WriteString("bool")
-	case model.TypeBinary:
-		buf.WriteString("[]byte")
-	case model.TypeTime:
-		buf.WriteString("time.Time")
 	case model.TypeRef:
 		buf.WriteString(namer.nameFor(typ.Ref))
 	case model.TypeArray:
 		buf.WriteString("[]")
 		writeType(buf, namer, typ.Elem)
-	case model.TypeMap:
-		buf.WriteString("map[string]")
-		writeType(buf, namer, typ.Elem)
 	case model.TypeObject:
+		if typ.Elem != nil && len(typ.Fields) == 0 {
+			buf.WriteString("map[string]")
+			writeType(buf, namer, typ.Elem)
+			return
+		}
+
 		buf.WriteString("struct {\n")
 		for _, field := range typ.Fields {
 			writeDoc(buf, field.Doc)
@@ -440,7 +445,7 @@ func doAnalyzeImports(typ *model.Type) set.Set[string] {
 		imports.Add("fmt")
 	}
 
-	if typ.Kind == model.TypeTime {
+	if typ.Kind == model.TypeString && (typ.Format == "date" || typ.Format == "date-time") {
 		imports.Add("time")
 		return imports
 	}
@@ -450,7 +455,7 @@ func doAnalyzeImports(typ *model.Type) set.Set[string] {
 		return imports
 	}
 
-	if typ.Kind == model.TypeArray || typ.Kind == model.TypeMap {
+	if typ.Kind == model.TypeArray {
 		return doAnalyzeImports(typ.Elem)
 	}
 
@@ -476,7 +481,11 @@ func requiresValidation(typ *model.Type) bool {
 		return typ.MaxF != nil || typ.MinF != nil
 	}
 
-	if typ.Kind == model.TypeMap || typ.Kind == model.TypeArray {
+	if typ.Kind == model.TypeString {
+		return typ.Len != nil || typ.Max != nil || typ.Min != nil || len(typ.Pattern) > 0
+	}
+
+	if typ.Kind == model.TypeArray {
 		return typ.Len != nil || typ.Max != nil || typ.Min != nil || requiresValidation(typ.Elem)
 	}
 
