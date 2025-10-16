@@ -347,6 +347,8 @@ func (r *Registry) visitArr(l Location, schema *base.Schema) (*Type, error) {
 
 		if !schema.Items.B {
 			typ.Len = ptr.To(int64(0))
+			typ.Min = nil
+			typ.Max = nil
 		}
 	} else {
 		var err error
