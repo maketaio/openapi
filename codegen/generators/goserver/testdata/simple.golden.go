@@ -3,8 +3,8 @@ package testdata
 
 import (
 	"fmt"
-	"github.com/maketaio/openapi/pkg/util/ptr"
-	"github.com/maketaio/openapi/pkg/validation"
+	"github.com/maketaio/openapi/util/ptr"
+	"github.com/maketaio/openapi/runtime/validation"
 )
 
 // Age is the generated type for schema Age

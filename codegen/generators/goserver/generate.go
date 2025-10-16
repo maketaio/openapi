@@ -1,4 +1,4 @@
-package generator
+package goserver
 
 import (
 	"bytes"
@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/maketaio/openapi/internal/oapigen/model"
-	"github.com/maketaio/openapi/pkg/util/set"
+	"github.com/maketaio/openapi/codegen/model"
+	"github.com/maketaio/openapi/util/set"
 	"github.com/pb33f/libopenapi"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -435,8 +435,8 @@ func doAnalyzeImports(typ *model.Type) set.Set[string] {
 	imports := set.NewSet[string]()
 
 	if requiresValidation(typ) {
-		imports.Add("github.com/maketaio/openapi/pkg/validation")
-		imports.Add("github.com/maketaio/openapi/pkg/util/ptr")
+		imports.Add("github.com/maketaio/openapi/runtime/validation")
+		imports.Add("github.com/maketaio/openapi/util/ptr")
 		imports.Add("fmt")
 	}
 

@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/maketaio/openapi/pkg/util/ptr"
+	"github.com/maketaio/openapi/util/ptr"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
