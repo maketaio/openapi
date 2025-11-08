@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/maketaio/openapi/codegen/generators/goserver"
+	"github.com/maketaio/openapi/internal/oapigen/generators/goserver"
 	"github.com/spf13/cobra"
 )
 

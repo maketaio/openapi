@@ -24,6 +24,8 @@ components:
         age:
           $ref: '#/components/schemas/Age'
         metadata:
-          type: object
+          type: 
+            - object
+            - null
           additionalProperties:
             type: string

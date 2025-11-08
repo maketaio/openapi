@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/maketaio/openapi/util/ptr"
+	"github.com/maketaio/openapi/internal/util/ptr"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
@@ -28,11 +28,12 @@ const (
 )
 
 type Type struct {
-	Kind   TypeKind
-	Enum   []EnumConst // For simple kinds where enums can be defined
-	Fields []Field     // For struct kind
-	Elem   *Type       // For slice, map and struct kind
-	Ref    string      // For reference kind, the ID of the declaration being referenced
+	Kind     TypeKind
+	Enum     []EnumConst // For simple kinds where enums can be defined
+	Fields   []Field     // For struct kind
+	Elem     *Type       // For slice, map and struct kind
+	Ref      string      // For reference kind, the ID of the declaration being referenced
+	Nullable bool
 
 	// Validation
 	Min, Max         *int64   // For int32, int64, string, map, slice
@@ -42,6 +43,7 @@ type Type struct {
 	Pattern          string   // For string
 	Format           string   // For string
 	MinF, MaxF       *float64 // For float64
+	NullOnly         bool     // Must be null only
 }
 
 type EnumConst struct {
@@ -156,31 +158,53 @@ func (r *Registry) visit(l Location, sp *base.SchemaProxy) (*Type, error) {
 	}
 
 	schema := sp.Schema()
+	st, nullable := normalizeSchemaType(schema)
 
-	if schema.Type == nil || len(schema.Type) == 0 {
+	if nullable && len(st) == 0 {
+		return &Type{
+			Kind:     TypeUnknown,
+			Nullable: true,
+			NullOnly: true,
+		}, nil
+	}
+
+	if len(st) == 0 {
 		return nil, fmt.Errorf("schema %s has no type", l)
 	}
 
-	if len(schema.Type) > 1 {
+	if len(st) > 1 {
 		return nil, fmt.Errorf("schema %s has multiple types, which is not supported at the moment", l)
 	}
 
-	switch schema.Type[0] {
+	var typ *Type
+	var err error
+
+	switch st[0] {
 	case "string":
-		return r.visitStr(l, schema)
+		typ, err = r.visitStr(l, schema)
 	case "integer":
-		return r.visitInt(l, schema)
+		typ, err = r.visitInt(l, schema)
 	case "number":
-		return r.visitNum(l, schema)
+		typ, err = r.visitNum(l, schema)
 	case "boolean":
-		return r.visitBool(l, schema)
+		typ, err = r.visitBool(l, schema)
 	case "array":
-		return r.visitArr(l, schema)
+		typ, err = r.visitArr(l, schema)
 	case "object":
-		return r.visitObj(l, schema)
+		typ, err = r.visitObj(l, schema)
 	default:
-		return nil, fmt.Errorf("unhandled type %s for %s", schema.Type[0], l)
+		return nil, fmt.Errorf("unhandled type %s for %s", st[0], l)
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if nullable {
+		typ.Nullable = true
+	}
+
+	return typ, nil
 }
 
 func (r *Registry) visitStr(l Location, schema *base.Schema) (*Type, error) {
@@ -561,4 +585,25 @@ func getNumericBounds(schema *base.Schema) numericBounds {
 	}
 
 	return b
+}
+
+func normalizeSchemaType(schema *base.Schema) ([]string, bool) {
+	// OAS 3.0: nullable is a flag on the schema object
+	nullable := schema.Nullable != nil && *schema.Nullable
+
+	if schema.Type == nil || len(schema.Type) == 0 {
+		return nil, nullable
+	}
+
+	peeled := make([]string, 0, len(schema.Type))
+	for _, t := range schema.Type {
+		if t == "null" {
+			nullable = true
+			continue
+		}
+
+		peeled = append(peeled, t)
+	}
+
+	return peeled, nullable
 }
